@@ -26,24 +26,32 @@ const CLI_PATH = path.resolve(import.meta.dir, "..", "cli.ts");
  * and spawned child processes can find claude, codex, gemini, bun, etc.
  */
 function enrichedPath(): string {
-  const home = process.env.HOME ?? "";
-  const extra = [
-    path.join(home, ".bun", "bin"),
-    path.join(home, ".local", "bin"),
-    path.join(home, ".nvm", "versions", "node", "current", "bin"),   // nvm
-    "/usr/local/bin",
-    "/opt/homebrew/bin",                                              // Apple Silicon brew
-    "/opt/homebrew/sbin",
-    path.join(home, ".cargo", "bin"),                                 // rustup
-    path.join(home, ".volta", "bin"),                                 // volta
-    path.join(home, "bin"),
-  ];
+  const isWin = process.platform === "win32";
+  const home = process.env.USERPROFILE ?? process.env.HOME ?? "";
+  const extra = isWin
+    ? [
+        path.join(home, ".bun", "bin"),
+        path.join(home, "AppData", "Local", "Programs", "Claude"),
+        path.join(home, "AppData", "Local", "agy", "bin"),
+        path.join(home, ".cargo", "bin"),
+      ]
+    : [
+        path.join(home, ".bun", "bin"),
+        path.join(home, ".local", "bin"),
+        path.join(home, ".nvm", "versions", "node", "current", "bin"),   // nvm
+        "/usr/local/bin",
+        "/opt/homebrew/bin",                                              // Apple Silicon brew
+        "/opt/homebrew/sbin",
+        path.join(home, ".cargo", "bin"),                                 // rustup
+        path.join(home, ".volta", "bin"),                                 // volta
+        path.join(home, "bin"),
+      ];
   const current = process.env.PATH ?? "";
-  const dirs = new Set(current.split(":"));
+  const dirs = new Set(current.split(path.delimiter).filter(Boolean));
   for (const d of extra) {
     if (!dirs.has(d)) dirs.add(d);
   }
-  return [...dirs].join(":");
+  return [...dirs].join(path.delimiter);
 }
 
 /** Cached enriched PATH — computed once per process. */
@@ -102,10 +110,19 @@ export async function detectAgent(type: AgentType): Promise<AgentDetection> {
     return { available: false };
   }
 
-  const which = Bun.spawnSync(["which", cmd], { env: spawnEnv });
-  const binPath = new TextDecoder().decode(which.stdout).trim();
+  let binPath = Bun.which(cmd, { PATH: ENRICHED_PATH }) ?? undefined;
+  if (!binPath) {
+    try {
+      const whichCmd = process.platform === "win32" ? ["where.exe", cmd] : ["which", cmd];
+      const which = Bun.spawnSync(whichCmd, { env: spawnEnv });
+      const out = new TextDecoder().decode(which.stdout).trim();
+      if (which.exitCode === 0 && out) {
+        binPath = out.split(/\r?\n/)[0].trim();
+      }
+    } catch { /* ok */ }
+  }
 
-  if (which.exitCode !== 0 || !binPath) {
+  if (!binPath) {
     return { available: false };
   }
 

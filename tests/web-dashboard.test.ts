@@ -7,6 +7,10 @@
  */
 
 import { test, expect, beforeAll, afterAll, describe } from "bun:test";
+import { fileURLToPath } from "node:url";
+import * as path from "node:path";
+import * as os from "node:os";
+import * as fs from "node:fs";
 
 const BROKER_PORT = 17899;
 const DASHBOARD_PORT = 17900;
@@ -14,6 +18,7 @@ const BROKER_URL = `http://127.0.0.1:${BROKER_PORT}`;
 const DASHBOARD_URL = `http://127.0.0.1:${DASHBOARD_PORT}`;
 let brokerProc: import("bun").Subprocess | null = null;
 let dashboardProc: import("bun").Subprocess | null = null;
+let tmpDb: string;
 let testCounter = 0;
 
 function uid(prefix = "test"): string {
@@ -31,9 +36,9 @@ async function brokerPost(path: string, body: any): Promise<any> {
 
 beforeAll(async () => {
   // Start broker on test port
-  const brokerPath = new URL("../broker.ts", import.meta.url).pathname;
-  const tmpDb = `/tmp/multiagents-web-dash-test-${Date.now()}.db`;
-  brokerProc = Bun.spawn(["bun", brokerPath], {
+  const brokerPath = fileURLToPath(new URL("../broker.ts", import.meta.url));
+  tmpDb = path.join(os.tmpdir(), `multiagents-web-dash-test-${Date.now()}.db`);
+  brokerProc = Bun.spawn([process.execPath, brokerPath], {
     env: { ...process.env, MULTIAGENTS_PORT: String(BROKER_PORT), MULTIAGENTS_DB: tmpDb },
     stdout: "pipe",
     stderr: "pipe",
@@ -63,8 +68,8 @@ beforeAll(async () => {
   });
 
   // Start web dashboard
-  const dashPath = new URL("../dashboard/server.ts", import.meta.url).pathname;
-  dashboardProc = Bun.spawn(["bun", dashPath, "dash-test-session"], {
+  const dashPath = fileURLToPath(new URL("../dashboard/server.ts", import.meta.url));
+  dashboardProc = Bun.spawn([process.execPath, dashPath, "dash-test-session"], {
     env: {
       ...process.env,
       MULTIAGENTS_PORT: String(BROKER_PORT),
@@ -89,6 +94,9 @@ beforeAll(async () => {
 afterAll(() => {
   dashboardProc?.kill();
   brokerProc?.kill();
+  if (tmpDb && fs.existsSync(tmpDb)) {
+    try { fs.unlinkSync(tmpDb); } catch { /* ok */ }
+  }
 });
 
 describe("Web Dashboard — HTTP server", () => {

@@ -18,6 +18,7 @@ Thumbs.db
 
 # Local dev settings (user-specific)
 .claude/
+.gemini/
 
 # Logs
 *.log

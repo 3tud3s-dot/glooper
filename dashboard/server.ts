@@ -18,6 +18,8 @@ import {
 } from "../shared/constants.ts";
 import type { Session, Slot, Peer, Message, GuardrailState, FileLock, FileOwnership } from "../shared/types.ts";
 import type { PlanState } from "../shared/broker-client.ts";
+import { fileURLToPath } from "node:url";
+import * as path from "node:path";
 
 // --- Configuration ---
 
@@ -215,8 +217,8 @@ let sessionId = await resolveSessionId(sessionArg);
 
 // --- HTML serving ---
 
-const DASHBOARD_DIR = new URL(".", import.meta.url).pathname;
-const indexHtml = Bun.file(`${DASHBOARD_DIR}index.html`);
+const DASHBOARD_DIR = fileURLToPath(new URL(".", import.meta.url));
+const indexHtml = Bun.file(path.join(DASHBOARD_DIR, "index.html"));
 
 const server = Bun.serve({
   port: WEB_DASHBOARD_PORT,

@@ -5,12 +5,5 @@
  * If it fails, prints fallback instructions — never breaks the install.
  */
 
-try {
-  const { installMcpSilent } = await import("../cli/install-mcp.ts");
-  await installMcpSilent();
-  console.log("[multiagents] Restart Claude Code to pick up the new tools.");
-  console.log("[multiagents] If tools don't appear, run: multiagents install-mcp");
-} catch (e) {
-  console.error(`[multiagents] postinstall warning: ${e instanceof Error ? e.message : String(e)}`);
-  console.error("[multiagents] Run 'multiagents install-mcp' to configure manually.");
-}
+console.log("[glooper] Postinstall complete.");
+console.log("[glooper] To configure MCP servers for Claude/Codex/Gemini, run: bun run cli/install-mcp.ts");

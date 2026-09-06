@@ -11,10 +11,15 @@
  */
 
 import { test, expect, beforeAll, afterAll, describe } from "bun:test";
+import { fileURLToPath } from "node:url";
+import * as path from "node:path";
+import * as os from "node:os";
+import * as fs from "node:fs";
 
 const BROKER_PORT = 17899; // Use a non-default port to avoid conflicts
 const BROKER_URL = `http://127.0.0.1:${BROKER_PORT}`;
 let brokerProc: import("bun").Subprocess | null = null;
+let tmpDb: string;
 let testCounter = 0;
 
 function uid(prefix = "test"): string {
@@ -32,9 +37,9 @@ async function post(path: string, body: any): Promise<any> {
 
 beforeAll(async () => {
   // Start a fresh broker on a test-specific port with temp db
-  const brokerPath = new URL("../broker.ts", import.meta.url).pathname;
-  const tmpDb = `/tmp/multiagents-test-${Date.now()}.db`;
-  brokerProc = Bun.spawn(["bun", brokerPath], {
+  const brokerPath = fileURLToPath(new URL("../broker.ts", import.meta.url));
+  tmpDb = path.join(os.tmpdir(), `multiagents-test-${Date.now()}.db`);
+  brokerProc = Bun.spawn([process.execPath, brokerPath], {
     env: { ...process.env, MULTIAGENTS_PORT: String(BROKER_PORT), MULTIAGENTS_DB: tmpDb },
     stdout: "pipe",
     stderr: "pipe",
@@ -52,6 +57,9 @@ beforeAll(async () => {
 
 afterAll(() => {
   brokerProc?.kill();
+  if (tmpDb && fs.existsSync(tmpDb)) {
+    try { fs.unlinkSync(tmpDb); } catch { /* ok */ }
+  }
 });
 
 // --- Helper: create a 3-agent session (Designer, Engineer, Reviewer) ---
