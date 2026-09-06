@@ -9,7 +9,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 
-const HOME = os.homedir();
+const HOME = process.env.USERPROFILE || process.env.HOME || os.homedir();
 const CLAUDE_PERMISSION_ENTRIES = [
   "mcp__multiagents",
   "mcp__multiagents-orch",
@@ -18,10 +18,8 @@ const CLAUDE_PERMISSION_ENTRIES = [
 ] as const;
 
 function findAgentCli(name: string): string | null {
-  try {
-    const which = Bun.spawnSync(["which", name]);
-    if (which.exitCode === 0) return new TextDecoder().decode(which.stdout).trim();
-  } catch { /* ok */ }
+  const found = Bun.which(name);
+  if (found) return found;
   return null;
 }
 

@@ -21,16 +21,31 @@ function makeTempHome(): string {
 }
 
 function writeExecutable(home: string, name: string, script: string): void {
-  fs.writeFileSync(path.join(home, "bin", name), script, { mode: 0o755 });
+  const binDir = path.join(home, "bin");
+  fs.writeFileSync(path.join(binDir, name), script, { mode: 0o755 });
+  if (process.platform === "win32") {
+    let cmdContent = `@echo off\r\nexit /b 0\r\n`;
+    if (script.includes('"$1" = "mcp"') && script.includes('"$2" = "add"')) {
+      cmdContent = `@echo off\r\nif "%~1"=="mcp" if "%~2"=="add" exit /b 1\r\nexit /b 0\r\n`;
+    }
+    fs.writeFileSync(path.join(binDir, `${name}.cmd`), cmdContent);
+  }
 }
 
 function runWithHome(home: string, command: string[]): { exitCode: number | null; stdout: string; stderr: string } {
+  const isWin = process.platform === "win32";
+  const binDir = path.join(home, "bin");
+  const envPath = isWin
+    ? `${binDir}${path.delimiter}${process.env.PATH ?? ""}`
+    : `${binDir}:${SAFE_PATH}`;
+
   const proc = Bun.spawnSync(command, {
     cwd: REPO_ROOT,
     env: {
       ...process.env,
       HOME: home,
-      PATH: `${path.join(home, "bin")}:${SAFE_PATH}`,
+      USERPROFILE: home,
+      PATH: envPath,
     },
     stdout: "pipe",
     stderr: "pipe",

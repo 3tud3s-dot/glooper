@@ -6,6 +6,7 @@
 import { test, expect, describe, beforeEach, afterEach } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
 import {
   buildCliArgs,
   mcpServerCommand,
@@ -45,7 +46,7 @@ function collectFlagValues(args: string[], flag: string): string[] {
 }
 
 beforeEach(() => {
-  tmpDir = fs.mkdtempSync(path.join("/tmp", "launcher-test-"));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "launcher-test-"));
 });
 
 afterEach(() => {

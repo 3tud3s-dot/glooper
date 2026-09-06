@@ -5,10 +5,15 @@
  */
 
 import { test, expect, beforeAll, afterAll, describe } from "bun:test";
+import { fileURLToPath } from "node:url";
+import * as path from "node:path";
+import * as os from "node:os";
+import * as fs from "node:fs";
 
 const BROKER_PORT = 17899;
 const BROKER_URL = `http://127.0.0.1:${BROKER_PORT}`;
 let brokerProc: import("bun").Subprocess | null = null;
+let tmpDb: string;
 let testCounter = 0;
 
 function uid(prefix = "test"): string {
@@ -25,9 +30,9 @@ async function post(path: string, body: any): Promise<any> {
 }
 
 beforeAll(async () => {
-  const brokerPath = new URL("../broker.ts", import.meta.url).pathname;
-  const tmpDb = `/tmp/multiagents-knowledge-test-${Date.now()}.db`;
-  brokerProc = Bun.spawn(["bun", brokerPath], {
+  const brokerPath = fileURLToPath(new URL("../broker.ts", import.meta.url));
+  tmpDb = path.join(os.tmpdir(), `multiagents-knowledge-test-${Date.now()}.db`);
+  brokerProc = Bun.spawn([process.execPath, brokerPath], {
     env: { ...process.env, MULTIAGENTS_PORT: String(BROKER_PORT), MULTIAGENTS_DB: tmpDb },
     stdout: "pipe",
     stderr: "pipe",
@@ -44,6 +49,9 @@ beforeAll(async () => {
 
 afterAll(() => {
   brokerProc?.kill();
+  if (tmpDb && fs.existsSync(tmpDb)) {
+    try { fs.unlinkSync(tmpDb); } catch { /* ok */ }
+  }
 });
 
 /** Helper: create a session for knowledge tests */

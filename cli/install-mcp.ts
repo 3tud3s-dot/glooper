@@ -21,7 +21,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 
-const HOME = os.homedir();
+const HOME = process.env.USERPROFILE || process.env.HOME || os.homedir();
 const CLAUDE_PERMISSION_ENTRIES = ["mcp__multiagents", "mcp__multiagents-orch"] as const;
 const CLAUDE_STALE_PERMISSION_ENTRIES = ["mcp__multiagents__*", "mcp__multiagents-orch__*"] as const;
 const CODEX_ARGS_TOML = '["--agent-type", "codex"]';
@@ -38,14 +38,14 @@ const ORCH_SCRIPT = path.join(PACKAGE_ROOT, "orchestrator", "orchestrator-server
 
 // Resolve the bun binary (needed as the command since scripts use bun shebangs)
 function findBun(): string {
-  try {
-    const which = Bun.spawnSync(["which", "bun"]);
-    const found = new TextDecoder().decode(which.stdout).trim();
-    if (found) return found;
-  } catch { /* ok */ }
+  const found = Bun.which("bun");
+  if (found) return found;
+
   // Fallback candidates
+  const isWin = process.platform === "win32";
+  const bunName = isWin ? "bun.exe" : "bun";
   for (const p of [
-    path.join(HOME, ".bun", "bin", "bun"),
+    path.join(HOME, ".bun", "bin", bunName),
     "/usr/local/bin/bun",
     "/opt/homebrew/bin/bun",
   ]) {
@@ -62,27 +62,27 @@ interface AgentConfigResult {
 }
 
 function findAgentCli(name: string): string | null {
-  try {
-    const which = Bun.spawnSync(["which", name]);
-    if (which.exitCode === 0) return new TextDecoder().decode(which.stdout).trim();
-  } catch { /* ok */ }
+  const found = Bun.which(name);
+  if (found) return found;
 
+  const isWin = process.platform === "win32";
   const knownPaths: Record<string, string[]> = {
     claude: [
-      path.join(HOME, ".local", "bin", "claude"),
-      path.join(HOME, ".claude", "bin", "claude"),
-      "/usr/local/bin/claude",
+      path.join(HOME, ".local", "bin", isWin ? "claude.cmd" : "claude"),
+      path.join(HOME, ".claude", "bin", isWin ? "claude.cmd" : "claude"),
+      path.join(HOME, "AppData", "Local", "Programs", "Claude", "claude.exe"),
+      "/usr/local/bin",
       "/opt/homebrew/bin/claude",
     ],
     codex: [
-      path.join(HOME, ".local", "bin", "codex"),
-      path.join(HOME, ".npm-global", "bin", "codex"),
+      path.join(HOME, ".local", "bin", isWin ? "codex.cmd" : "codex"),
+      path.join(HOME, ".npm-global", "bin", isWin ? "codex.cmd" : "codex"),
       "/usr/local/bin/codex",
       "/opt/homebrew/bin/codex",
     ],
     gemini: [
-      path.join(HOME, ".local", "bin", "gemini"),
-      path.join(HOME, ".npm-global", "bin", "gemini"),
+      path.join(HOME, ".local", "bin", isWin ? "gemini.cmd" : "gemini"),
+      path.join(HOME, ".npm-global", "bin", isWin ? "gemini.cmd" : "gemini"),
       "/usr/local/bin/gemini",
       "/opt/homebrew/bin/gemini",
     ],
